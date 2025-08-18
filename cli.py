@@ -16,7 +16,7 @@ def main():
             cmd, args = parse(command)
 
             if cmd == "EXIT":
-                print("Thanks for tasting...")
+                print("Thanks for Tasting...")
                 break
             elif cmd == "SET" and len(args) >= 2:
                 key, value = args[0], " ".join(args[1:])

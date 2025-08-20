@@ -1,4 +1,5 @@
 #pragma once
+
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -25,5 +26,5 @@ namespace sapota {
         private:
             mutable std::shared_mutex mtx_;
             std::unordered_map<std::string, std::string> map_;  
-    }
+    };
 }

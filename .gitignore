@@ -6,3 +6,6 @@ build
 
 # build file 
 *.exe
+
+# write ahead log (WAL) file
+*.log

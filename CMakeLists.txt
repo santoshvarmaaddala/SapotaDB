@@ -17,6 +17,8 @@ target_include_directories(sapota_engine PUBLIC
 # CLI binary
 add_executable(sapota_cli
     src/cli/main.cpp
+    src/engine/engine.cpp
+    src/log/log_manager.cpp
 )
 
 target_link_libraries(sapota_cli PRIVATE sapota_engine)

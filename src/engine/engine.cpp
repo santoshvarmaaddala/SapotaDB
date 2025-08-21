@@ -1,5 +1,6 @@
 #include "engine/engine.hpp"
 #include <mutex>
+#include <chrono>
 
 using namespace std;
 
@@ -8,25 +9,39 @@ namespace sapota {
         // Replay WAL into map_ at startup
         log_.replay([this](const string& op, const string& key, const string& value) {
             if (op == "SET") {
-                map_[key] = value;
+                Entry e;
+                e.value = value;
+                map_[key] = e;
             } else if (op == "DEL") {
                 map_.erase(key);
             }
         });
     }
 
-    bool Engine::put(const string& key, const string& value) {
+    bool Engine::set(const string& key, const string& value, int ttlSeconds) {
         unique_lock lock(mtx_);
         if (!log_.append_set(key, value)) return false;
-        map_[key] = value;
+        
+        Entry entry;
+        entry.value = value;
+        if (ttlSeconds > 0) {
+            entry.hasTTL = true;
+            entry.expireAt = chrono::steady_clock::now() + chrono::seconds(ttlSeconds);
+        }
+        map_[key] = entry;
         return true;
     }
 
-    optional<string> Engine::get(const string& key) const {
-        shared_lock lock(mtx_);
+    optional<string> Engine::get(const string& key){
+        unique_lock lock(mtx_);
         auto it = map_.find(key);
         if (it == map_.end()) return nullopt;
-        return it->second;
+
+        if (it->second.hasTTL && chrono::steady_clock::now() > it->second.expireAt) {
+            map_.erase(it);
+            return nullopt;
+        }
+        return it->second.value;
     }
 
     bool Engine::del(const string& key) {
@@ -35,11 +50,19 @@ namespace sapota {
         return map_.erase(key) > 0;
     }
 
-    vector<string> Engine::keys() const {
+    vector<string> Engine::keys() {
         shared_lock lock(mtx_);
         vector<string> out;
         out.reserve(map_.size());
-        for (auto const& kv : map_) out.push_back(kv.first);
+
+        for (auto it = map_.begin(); it != map_.end();) {
+            if (it->second.hasTTL && chrono::steady_clock::now() > it->second.expireAt) {
+                it = map_.erase(it);
+            } else {
+                out.push_back(it -> first);
+                ++it;
+            }
+        }
         return out;
     }
 

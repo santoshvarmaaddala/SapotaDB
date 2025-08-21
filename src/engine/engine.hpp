@@ -16,6 +16,7 @@ namespace sapota {
         string value;
         bool hasTTL = false;
         chrono::steady_clock::time_point expireAt;
+        time_t expiry;
     };
 
     class Engine {

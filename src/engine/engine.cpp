@@ -5,12 +5,12 @@
 using namespace std;
 
 namespace sapota {
-    Engine::Engine(const string& wal_path) : log_(wal_path) {
-        // Replay WAL into map_ at startup
-        log_.replay([this](const string& op, const string& key, const string& value) {
+   Engine::Engine(const string& wal_path) : log_(wal_path) {
+        log_.replay([this](const string& op, const string& key, const string& value, time_t expiry) {
             if (op == "SET") {
                 Entry e;
                 e.value = value;
+                e.expiry = expiry;
                 map_[key] = e;
             } else if (op == "DEL") {
                 map_.erase(key);
@@ -18,10 +18,11 @@ namespace sapota {
         });
     }
 
+
     bool Engine::set(const string& key, const string& value, int ttlSeconds) {
         unique_lock lock(mtx_);
-        if (!log_.append_set(key, value)) return false;
-        
+        if (!log_.append_set(key, value, ttlSeconds)) return false;
+
         Entry entry;
         entry.value = value;
         if (ttlSeconds > 0) {
@@ -31,6 +32,7 @@ namespace sapota {
         map_[key] = entry;
         return true;
     }
+
 
     optional<string> Engine::get(const string& key){
         unique_lock lock(mtx_);

@@ -15,7 +15,7 @@ namespace sapota {
     struct Entry {
         string value;
         bool hasTTL = false;
-        chrono::steady_clock::time_point expireAt;
+        chrono::system_clock::time_point expireAt;
         time_t expiry;
     };
 
@@ -36,4 +36,4 @@ namespace sapota {
         unordered_map<string, Entry> map_;
         LogManager log_;
     };
-}
+};

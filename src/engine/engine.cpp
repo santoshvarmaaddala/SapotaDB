@@ -10,13 +10,21 @@ namespace sapota {
             if (op == "SET") {
                 Entry e;
                 e.value = value;
-                e.expiry = expiry;
+                if (expiry > 0) {
+                    e.hasTTL = true;
+                    e.expireAt = chrono::system_clock::from_time_t(expiry);
+                    if (chrono::system_clock::now() >= e.expireAt) {
+                        // Skip expired entries
+                        return;
+                    }
+                }
                 map_[key] = e;
             } else if (op == "DEL") {
                 map_.erase(key);
             }
         });
-    }
+}
+
 
 
     bool Engine::set(const string& key, const string& value, int ttlSeconds) {
@@ -27,7 +35,7 @@ namespace sapota {
         entry.value = value;
         if (ttlSeconds > 0) {
             entry.hasTTL = true;
-            entry.expireAt = chrono::steady_clock::now() + chrono::seconds(ttlSeconds);
+            entry.expireAt = chrono::system_clock::now() + chrono::seconds(ttlSeconds);
         }
         map_[key] = entry;
         return true;
@@ -39,7 +47,7 @@ namespace sapota {
         auto it = map_.find(key);
         if (it == map_.end()) return nullopt;
 
-        if (it->second.hasTTL && chrono::steady_clock::now() > it->second.expireAt) {
+        if (it->second.hasTTL && chrono::system_clock::now() > it->second.expireAt) {
             map_.erase(it);
             return nullopt;
         }
@@ -58,7 +66,7 @@ namespace sapota {
         out.reserve(map_.size());
 
         for (auto it = map_.begin(); it != map_.end();) {
-            if (it->second.hasTTL && chrono::steady_clock::now() > it->second.expireAt) {
+            if (it->second.hasTTL && chrono::system_clock::now() > it->second.expireAt) {
                 it = map_.erase(it);
             } else {
                 out.push_back(it -> first);

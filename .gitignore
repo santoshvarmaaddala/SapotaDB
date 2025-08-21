@@ -9,3 +9,6 @@ build
 
 # write ahead log (WAL) file
 *.log
+
+# others
+notes

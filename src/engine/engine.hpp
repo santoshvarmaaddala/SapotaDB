@@ -5,26 +5,26 @@
 #include <vector>
 #include <optional>
 #include <shared_mutex>
+#include "log/log_manager.hpp"
 
+using namespace std;
 
 namespace sapota {
     class Engine {
-        public:
-            Engine() = default;
-            ~Engine() = default;
-        
-            bool put (const std::string& key, const std::string& value);
+    public:
+        Engine(const string& wal_path);
+        Engine() : Engine("wal.log") {}   
+        ~Engine() = default;
+    
+        bool put(const string& key, const string& value);
+        optional<string> get(const string& key) const;
+        bool del(const string& key);
+        vector<string> keys() const;
+        void clear();
 
-            std::optional<std::string> get(const std::string& key) const;
-
-            bool del(const std::string& key);
-
-            std::vector<std::string> keys() const;
-
-            void clear();
-        
-        private:
-            mutable std::shared_mutex mtx_;
-            std::unordered_map<std::string, std::string> map_;  
+    private:
+        mutable shared_mutex mtx_;
+        unordered_map<string, string> map_;
+        LogManager log_;
     };
 }

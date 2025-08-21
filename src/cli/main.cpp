@@ -31,7 +31,7 @@ static std::vector<std::string> split_once(const std::string& s) {
 }
 
 int main() {
-    Engine db;
+    Engine db("./sapota_wal.log");
 
     std::cout << "\n 🌱 Welcome to SapotaDB ";
     std::cout << "\n Commands:\n  PUT <key> <value>\n  GET <key>\n  DELETE <key>\n  KEYS\n  EXIT\n\n";

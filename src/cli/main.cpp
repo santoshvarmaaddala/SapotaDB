@@ -34,7 +34,7 @@ int main() {
     Engine db;
 
     std::cout << "\n 🌱 Welcome to SapotaDB ";
-    std::cout << "Commands:\n  PUT <key> <value>\n  GET <key>\n  DELETE <key>\n  KEYS\n  EXIT\n\n";
+    std::cout << "\n Commands:\n  PUT <key> <value>\n  GET <key>\n  DELETE <key>\n  KEYS\n  EXIT\n\n";
 
     std::string line;
     while (true) {
@@ -50,7 +50,7 @@ int main() {
         std::transform(cmd.begin(), cmd.end(), cmd.begin(), [](unsigned char c){ return std::toupper(c); });
 
         if (cmd == "EXIT" || cmd == "QUIT") {
-            std::cout << "Bye" << std::endl;
+            std::cout << "Thanks for Tasting" << std::endl;
             break;
         }
         else if (cmd == "PUT") {
@@ -62,27 +62,31 @@ int main() {
             std::string value; std::getline(iss, value); value = trim(value);
             if (value.empty()) { std::cout << "ERR missing value" << std::endl; continue; }
             db.put(key, value);
-            std::cout << "OK" << std::endl;
+            std::cout << "Inserted" << std::endl;
         }
         else if (cmd == "GET") {
             if (parts.size() != 2) { std::cout << "ERR usage: GET <key>" << std::endl; continue; }
             auto key = parts[1];
             auto val = db.get(key);
-            if (!val) std::cout << "(nil)" << std::endl;
+            if (!val) std::cout << "Not Found" << std::endl;
             else std::cout << *val << std::endl;
         }
         else if (cmd == "DELETE" || cmd == "DEL") {
             if (parts.size() != 2) { std::cout << "ERR usage: DELETE <key>" << std::endl; continue; }
             bool ok = db.del(parts[1]);
-            std::cout << (ok ? "1" : "0") << std::endl;
+            std::cout << (ok ? "Deleted" : "No key found or not able to delete") << std::endl;
         }
         else if (cmd == "KEYS") {
             auto ks = db.keys();
-            std::cout << "[";
-            for (size_t i = 0; i < ks.size(); ++i) {
-                std::cout << (i ? ", " : "") << '"' << ks[i] << '"';
+            size_t i, len = ks.size();
+            if (len == 0) {
+                std::cout << "No stored keys" << std::endl;
+            } else {
+                for (i = 0; i < len; ++i) {
+                    std::cout << ks[i] << std::endl;
+                }
             }
-            std::cout << "]" << std::endl;
+            
         }
         else {
             std::cout << "ERR unknown command" << std::endl;

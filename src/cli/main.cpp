@@ -4,10 +4,11 @@
 #include <vector>
 #include <algorithm>
 #include <cctype>
+#include <chrono>
+#include <iomanip> // for std::quoted
 #include "engine/engine.hpp"
 
 using namespace sapota;
-
 
 static std::string trim(const std::string& s) {
     size_t i = 0, j = s.size();
@@ -34,7 +35,7 @@ int main() {
     Engine db("./sapota_wal.log");
 
     std::cout << "\n 🌱 Welcome to SapotaDB ";
-    std::cout << "\n Commands:\n  PUT <key> <value>\n  GET <key>\n  DELETE <key>\n  KEYS\n  EXIT\n\n";
+    std::cout << "\n Commands:\n  SET <key> <value> [ttl_seconds]\n  GET <key>\n  DELETE <key>\n  KEYS\n  EXIT\n\n";
 
     std::string line;
     while (true) {
@@ -53,16 +54,31 @@ int main() {
             std::cout << "Thanks for Tasting" << std::endl;
             break;
         }
-        else if (cmd == "PUT") {
-            // Expect: PUT <key> <value>
+        else if (cmd == "SET") {
+            // Expect: SET <key> <value> [ttl_seconds]
             if (parts.size() < 2) { std::cout << "ERR missing arguments" << std::endl; continue; }
-            // Extract key (first token of the payload) and value (rest)
+
             std::istringstream iss(parts[1]);
-            std::string key; if (!(iss >> key)) { std::cout << "ERR missing key" << std::endl; continue; }
-            std::string value; std::getline(iss, value); value = trim(value);
+            std::string key;
+            if (!(iss >> key)) { std::cout << "ERR missing key" << std::endl; continue; }
+
+            std::string value;
+            if (!(iss >> std::quoted(value))) {
+                std::getline(iss, value);
+                value = trim(value);
+            }
             if (value.empty()) { std::cout << "ERR missing value" << std::endl; continue; }
-            db.put(key, value);
-            std::cout << "Inserted" << std::endl;
+
+            int ttl = 0;
+            iss >> ttl; // optional TTL (in seconds)
+
+            if (ttl > 0) {
+                db.set(key, value, ttl);
+                std::cout << "Inserted with TTL=" << ttl << "s" << std::endl;
+            } else {
+                db.set(key, value);
+                std::cout << "Inserted" << std::endl;
+            }
         }
         else if (cmd == "GET") {
             if (parts.size() != 2) { std::cout << "ERR usage: GET <key>" << std::endl; continue; }
@@ -78,15 +94,11 @@ int main() {
         }
         else if (cmd == "KEYS") {
             auto ks = db.keys();
-            size_t i, len = ks.size();
-            if (len == 0) {
+            if (ks.empty()) {
                 std::cout << "No stored keys" << std::endl;
             } else {
-                for (i = 0; i < len; ++i) {
-                    std::cout << ks[i] << std::endl;
-                }
+                for (auto &k : ks) std::cout << k << std::endl;
             }
-            
         }
         else {
             std::cout << "ERR unknown command" << std::endl;
@@ -94,4 +106,4 @@ int main() {
     }
 
     return 0;
-    }
+}

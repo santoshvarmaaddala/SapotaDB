@@ -3,22 +3,23 @@ $projectRoot = "C:\Users\KITS\products\SapotaDB"
 $srcPath = "$projectRoot\src"
 $cliPath = "$srcPath\cli"
 $enginePath = "$srcPath\engine"
-$outputExe = "$cliPath\main.exe"
-$logpath = "$srcPath\log"
+$logPath = "$srcPath\log"
+$txPath = "$srcPath\tx"
+$storagePath = "$srcPath\storage"
+$outputExe = "$projectRoot\sapotaDB.exe"
 
-# Compile SapotaDB
-Write-Host "Compiling SapotaDB..."
+Write-Host "Compiling SapotaDB (MVCC)..."
 
-g++ -I "$srcPath" -fdiagnostics-color=always -g `
+g++ -std=c++17 -I "$srcPath" -fdiagnostics-color=always -g `
     "$cliPath\main.cpp" `
     "$enginePath\engine.cpp" `
-    "$logpath\log_manager.cpp" `
+    "$logPath\log_manager.cpp" `
+    "$txPath/tx.cpp" `
+    "$storagePath/mvcc.cpp" `
     -o "$outputExe"
 
-# Check if compilation succeeded
 if (Test-Path $outputExe) {
     Write-Host "✅ Compilation successful!"
-    Write-Host "Running SapotaDB..."
     & $outputExe
 } else {
     Write-Error "❌ Compilation failed. Check errors above."

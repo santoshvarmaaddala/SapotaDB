@@ -1,21 +1,26 @@
 #pragma once
 #include <string>
 #include <functional>
+#include <ctime>
 
-using namespace std;
+namespace sapota {
 
 class LogManager {
-    public:
-        explicit LogManager(const string& wal_path);
-        ~LogManager();
+public:
+    explicit LogManager(const std::string& wal_path);
+    ~LogManager();
 
-        bool append_set(const string& key, const string& value, int ttlSeconds);
-        bool append_del(const string& key);
+    // emit a SET record: key/value sizes and expiry epoch seconds (0 = none)
+    bool append_set(const std::string& key, const std::string& value, std::time_t expiry);
 
-        size_t replay(
-            const function<void(const string&, const string&, const string&, time_t)>& cb
-        );
+    // emit a DEL record
+    bool append_del(const std::string& key);
 
-    private:
-        string wal_path_;
+    // Replay WAL. Callback: op ("SET"/"DEL"), key, value (empty for DEL), expiry (0 if none)
+    size_t replay(const std::function<void(const std::string&, const std::string&, const std::string&, std::time_t)>& cb);
+
+private:
+    std::string wal_path_;
 };
+
+} // namespace sapota

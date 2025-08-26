@@ -3,35 +3,27 @@
 #include <filesystem>
 #include <iostream>
 
-using namespace std;
+using namespace sapota;
 
-LogManager::LogManager(const string& wal_path) : wal_path_(wal_path) {
-    // Ensure parent directory exists
-    filesystem::create_directories(filesystem::path(wal_path_).parent_path());
+LogManager::LogManager(const std::string& wal_path) : wal_path_(wal_path) {
+    // ensure parent dir exists (no-op if path has no parent)
+    std::filesystem::path p(wal_path_);
+    if (!p.parent_path().empty()) std::filesystem::create_directories(p.parent_path());
 }
 
-LogManager::~LogManager() {}
+LogManager::~LogManager() = default;
 
-bool LogManager::append_set(const string& key, const string& value, int ttlSeconds) {
-    ofstream ofs(wal_path_, ios::app | ios::binary);
+bool LogManager::append_set(const std::string& key, const std::string& value, std::time_t expiry) {
+    std::ofstream ofs(wal_path_, std::ios::app | std::ios::binary);
     if (!ofs.is_open()) return false;
-
-    // If no TTL, mark expiry as 0
-    long long expireAt = 0;
-    if (ttlSeconds > 0) {
-        auto now = chrono::system_clock::now();
-        expireAt = chrono::duration_cast<chrono::seconds>(now.time_since_epoch()).count() + ttlSeconds;
-    }
-
-    ofs << "SET " << key.size() << " " << value.size() << " " << expireAt << "\n";
-    ofs << key << value << "\n";    
-
+    ofs << "SET " << key.size() << " " << value.size() << " " << expiry << "\n";
+    ofs << key << value << "\n";
     ofs.flush();
     return true;
 }
 
-bool LogManager::append_del(const string& key) {
-    ofstream ofs(wal_path_, ios::app | ios::binary);
+bool LogManager::append_del(const std::string& key) {
+    std::ofstream ofs(wal_path_, std::ios::app | std::ios::binary);
     if (!ofs.is_open()) return false;
     ofs << "DEL " << key.size() << "\n";
     ofs << key << "\n";
@@ -39,49 +31,37 @@ bool LogManager::append_del(const string& key) {
     return true;
 }
 
-size_t LogManager::replay(
-    const function<void(const string&, const string&, const string&, time_t)>& cb
-) {
-    ifstream ifs(wal_path_, ios::binary);
+size_t LogManager::replay(const std::function<void(const std::string&, const std::string&, const std::string&, std::time_t)>& cb) {
+    std::ifstream ifs(wal_path_, std::ios::binary);
     if (!ifs.is_open()) return 0;
 
     size_t count = 0;
-    string op;
+    std::string op;
     while (ifs >> op) {
         if (op == "SET") {
-            size_t klen, vlen;
-            time_t expiry;
+            size_t klen = 0, vlen = 0; std::time_t expiry = 0;
             if (!(ifs >> klen >> vlen >> expiry)) break;
             ifs.get(); // consume newline
-
-            string kv(klen + vlen, '\0');
+            std::string kv(klen + vlen, '\0');
             if (!ifs.read(&kv[0], klen + vlen)) break;
             ifs.get(); // consume newline
-
-            string key = kv.substr(0, klen);
-            string value = kv.substr(klen, vlen);
-
-            cb("SET", key, value, expiry);
-            count++;
-        } 
-        else if (op == "DEL") {
-            size_t klen;
+            std::string key = kv.substr(0, klen);
+            std::string val = kv.substr(klen, vlen);
+            cb("SET", key, val, expiry);
+            ++count;
+        } else if (op == "DEL") {
+            size_t klen = 0;
             if (!(ifs >> klen)) break;
             ifs.get(); // consume newline
-
-            string key(klen, '\0');
+            std::string key(klen, '\0');
             if (!ifs.read(&key[0], klen)) break;
             ifs.get(); // consume newline
-
-            cb("DEL", key, "", 0);
-            count++;
-        } 
-        else {
-            cerr << "[WAL] Unknown op in log, stopping replay.\n";
+            cb("DEL", key, std::string(), 0);
+            ++count;
+        } else {
+            std::cerr << "[WAL] Unknown op '" << op << "' while replaying. Stop.\n";
             break;
         }
     }
     return count;
 }
-
-

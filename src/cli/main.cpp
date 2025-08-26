@@ -32,7 +32,7 @@ int main() {
     Engine db("./sapota_wal.log");
 
     std::cout << "\n 🌱 SapotaDB (MVCC) ";
-    std::cout << "\n Commands:\n  SET <key> <value> [ttl_seconds]\n  GET <key>\n  DELETE <key>\n  KEYS\n  BEGIN | COMMIT | ABORT (transactional usage TBD)\n  EXIT\n\n";
+    std::cout << "\n Commands:\n  SET <key> <value> [ttl_seconds]\n  GET <key>\n  DELETE <key>\n  KEYS\n  BEGIN | COMMIT| ROLLBACK | ABORT (transactional usage TBD)\n  EXIT\n\n";
 
     std::string line;
     std::optional<Txn> cur;
@@ -61,18 +61,37 @@ int main() {
             }
             if (value.empty()) { std::cout << "ERR missing value\n"; continue; }
             int ttl = 0; iss >> ttl;
-            bool ok = db.set(key, value, ttl);
-            std::cout << (ok ? "OK\n" : "ERR\n");
+
+            if (cur) {
+                // stage inside active txn
+                db.stage_set(*cur, key, value, ttl);
+                std::cout << "OK\n";
+            } else {
+                bool ok = db.set(key, value, ttl);
+                std::cout << (ok ? "OK\n" : "ERR\n");
+            }
         }
         else if (cmd == "GET") {
             if (parts.size() != 2) { std::cout << "ERR usage: GET <key>\n"; continue; }
-            auto val = db.get(parts[1]);
+            auto key = parts[1];
+            std::optional<std::string> val;
+            if (cur) {
+                val = db.get(*cur, key);
+            } else {
+                val = db.get(key);
+            }
             if (!val) std::cout << "(nil)\n"; else std::cout << *val << "\n";
         }
         else if (cmd == "DELETE" || cmd == "DEL") {
             if (parts.size() != 2) { std::cout << "ERR usage: DELETE <key>\n"; continue; }
-            bool ok = db.del(parts[1]);
-            std::cout << (ok ? "OK\n" : "ERR\n");
+            auto key = parts[1];
+            if (cur) {
+                db.stage_del(*cur, key);
+                std::cout << "OK\n";
+            } else {
+                bool ok = db.del(key);
+                std::cout << (ok ? "OK\n" : "ERR\n");
+            }
         }
         else if (cmd == "KEYS") {
             auto ks = db.keys();
@@ -89,11 +108,11 @@ int main() {
             std::cout << (ok ? "COMMIT OK\n" : "COMMIT FAIL (conflict)\n");
             cur.reset();
         }
-        else if (cmd == "ABORT") {
+        else if (cmd == "ABORT" || cmd == "ROLLBACK") {
             if (!cur) { std::cout << "ERR not in txn\n"; continue; }
             db.abort(*cur);
             cur.reset();
-            std::cout << "ABORTED\n";
+            std::cout << "ROLLBACK OK\n";
         }
         else {
             std::cout << "ERR unknown command\n";
